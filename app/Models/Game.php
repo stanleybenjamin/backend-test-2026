@@ -10,7 +10,15 @@ class Game extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['campaign_id', 'prize_id', 'account', 'segment', 'finished_at'];
+    protected $fillable = [
+        'campaign_id',
+        'prize_id',
+        'account',
+        'segment',
+        'finished_at',
+        'player_token',
+        'winning_prize_id',
+    ];
 
     protected function casts(): array
     {
@@ -37,5 +45,20 @@ class Game extends Model
     public function prize(): BelongsTo
     {
         return $this->belongsTo(Prize::class);
+    }
+
+    public function awardedPrize()
+    {
+        return $this->belongsTo(Prize::class, 'prize_id');
+    }
+
+    public function winningPrize()
+    {
+        return $this->belongsTo(Prize::class, 'winning_prize_id');
+    }
+
+    public function tiles()
+    {
+        return $this->hasMany(GameTile::class);
     }
 }

@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('campaign_id');
             $table->foreignId('prize_id')->nullable();
-            $table->string('account');
+            $table->string('account'); // not shown to the user, used for identification and segmentation
             $table->string('segment');
             $table->dateTime('finished_at')->nullable();
             $table->timestamps();

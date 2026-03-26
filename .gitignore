@@ -23,3 +23,4 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 INTERVIEWER_NOTES.md
+.env.testing

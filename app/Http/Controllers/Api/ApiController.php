@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Game;
+use App\Services\GamePlayService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class ApiController extends Controller
@@ -29,5 +32,14 @@ class ApiController extends Controller
         return [
             'tileImage' => asset('assets/'.random_int(1, 7).'.png'),
         ] + ($currentMove >= 10 ? ['message' => 'You lost!'] : []);
+    }
+
+    public function v2(Request $request)
+    {
+        $game = Game::findOrFail($request->integer('gameId'));
+
+        return response()->json(
+            app(GamePlayService::class)->flip($game, $request->integer('tileIndex'))
+        );
     }
 }

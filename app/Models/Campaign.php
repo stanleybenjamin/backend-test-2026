@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use DateTimeZone;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Sluggable\HasSlug;
@@ -10,7 +11,7 @@ use Spatie\Sluggable\SlugOptions;
 
 class Campaign extends Model
 {
-    use HasSlug;
+    use HasFactory, HasSlug;
 
     protected $fillable = [
         'timezone', 'name', 'slug', 'starts_at', 'ends_at',

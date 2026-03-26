@@ -36,41 +36,43 @@
 
 @push('js')
     <script>
-        Livewire.on('deleteResource', function(url, resource){
-            swal({
-                title: "Are you sure you want to delete this "+resource+"?",
-                text: "The data will be permanently removed from our servers forever. This action cannot be undone!",
-                icon: "warning",
-                buttons: {
-                    cancel: {
-                        text: "No",
-                        value: false,
-                        visible: true,
-                        closeModal: true,
+        document.addEventListener('livewire:init', () => {
+            Livewire.on('deleteResource', function(data){
+                swal({
+                    title: "Are you sure you want to delete this "+data.resource+"?",
+                    text: "The data will be permanently removed from our servers forever. This action cannot be undone!",
+                    icon: "warning",
+                    buttons: {
+                        cancel: {
+                            text: "No",
+                            value: false,
+                            visible: true,
+                            closeModal: true,
+                        },
+                        confirm: {
+                            className: 'swal-delete-button',
+                            text: "Yes",
+                            value: true,
+                            visible: true,
+                            closeModal: false,
+                        },
                     },
-                    confirm: {
-                        className: 'swal-delete-button',
-                        text: "Yes",
-                        value: true,
-                        visible: true,
-                        closeModal: false,
-                    },
-                },
-            }).then(doDelete => {
-                if(doDelete) {
-                    axios.post(url, { _method: 'delete' })
-                        .then(function (response) {
-                            swal({
-                                title: "Success!",
-                                text: "The "+resource+" has been removed.",
-                                icon: "success",
-                                buttons: false,
-                                timer: 1000,
+                }).then(doDelete => {
+                    if(doDelete) {
+                        axios.post(data.url, { _method: 'delete' })
+                            .then(function (response) {
+                                swal({
+                                    title: "Success!",
+                                    text: "The "+data.resource+" has been removed.",
+                                    icon: "success",
+                                    buttons: false,
+                                    timer: 1000,
+                                });
+                                Livewire.emit('resourceDeleted');
                             });
-                            Livewire.emit('resourceDeleted');
-                        });
-                }
-            });
+                    }
+                });
+            }); 
         });
     </script>
 @endpush

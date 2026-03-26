@@ -41,7 +41,7 @@
                             @endif
 
                             @if( in_array('delete', $column['tools'], true) && auth()->user()->isAdmin() )
-                                <button wire:click="$dispatch('deleteResource', '{{ route('backstage.'.$resource.'.destroy', $row->id) }}', '{{ Str::singular($resource) }}')" class="table-tool">
+                                <button wire:click="$dispatch('deleteResource', { url: '{{ route('backstage.'.$resource.'.destroy', $row->id) }}', resource: '{{ Str::singular($resource) }}' })" class="table-tool">
                                     <i class="fas fa-trash-alt"></i>
                                 </button>
                             @endif

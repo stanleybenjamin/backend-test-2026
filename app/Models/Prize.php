@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Prize extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'campaign_id',
         'name',
@@ -35,5 +38,15 @@ class Prize extends Model
     public function campaign(): BelongsTo
     {
         return $this->belongsTo(Campaign::class);
+    }
+
+    public function scopeForSegment($query, string $segment)
+    {
+        return $query->where('segment', $segment);
+    }
+
+    public function scopeForCampaign($query, int $campaignId)
+    {
+        return $query->where('campaign_id', $campaignId);
     }
 }
