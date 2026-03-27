@@ -31,7 +31,7 @@ class GameplaySessionServiceTest extends TestCase
             'campaign_id' => $campaign->id,
         ]);
 
-        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', 'account', Str::uuid()->toString());
+        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', Str::uuid()->toString());
 
         $this->assertNotNull($result);
         $this->assertEquals('account', $result->account);
@@ -60,7 +60,7 @@ class GameplaySessionServiceTest extends TestCase
             'segment' => 'low',
         ]);
 
-        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', 'account', $playerToken);
+        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', $playerToken);
         $this->assertNotNull($result);
         $this->assertTrue($activeGame->is($result));
     }
@@ -88,7 +88,7 @@ class GameplaySessionServiceTest extends TestCase
             'segment' => 'low',
         ]);
 
-        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', 'account', $playerToken);
+        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', $playerToken);
         $this->assertNotNull($result);
         $this->assertFalse($finishedGame->is($result));
     }
@@ -104,6 +104,8 @@ class GameplaySessionServiceTest extends TestCase
 
         Prize::factory()->count(5)->state($this->segmentSequence())->create([
             'campaign_id' => $campaign->id,
+            'starts_at' => $campaign->starts_at,
+            'ends_at' => $campaign->ends_at,
         ]);
 
         $playerToken = Str::uuid()->toString();
@@ -116,7 +118,7 @@ class GameplaySessionServiceTest extends TestCase
             'segment' => 'low',
         ]);
 
-        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', 'account', $playerToken);
+        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', $playerToken);
         $this->assertNotNull($result);
         $this->assertFalse($finishedGame->is($result));
         // check game count for player is 2
@@ -124,7 +126,8 @@ class GameplaySessionServiceTest extends TestCase
         $this->assertEquals('account', $result->account);
     }
 
-    public function cannotCreateGameWhenNoPrizesForSegment()
+    #[Test]
+    public function cannot_create_game_when_no_prizes_for_segment()
     {
         // create Campaign
         $campaign = Campaign::factory()->create([
@@ -136,7 +139,7 @@ class GameplaySessionServiceTest extends TestCase
 
         $playerToken = Str::uuid()->toString();
 
-        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', 'account', $playerToken);
+        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', $playerToken);
         $this->assertNull($result);
     }
 

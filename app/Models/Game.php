@@ -16,6 +16,10 @@ class Game extends Model
         'account',
         'segment',
         'finished_at',
+        'filps_count',
+        'max_flips',
+        'winning_flip',
+        'reveal_plan',
         'player_token',
         'winning_prize_id',
     ];

@@ -125,7 +125,7 @@ class GameplayService
             ->lockForUpdate()
             ->first();
 
-        if (! $lockedPrize || ! $this->prizeSelectionService->hasRemainingDailyCapacity($lockedPrize)) {
+        if (! $lockedPrize || ! $this->prizeSelectionService->hasRemainingDailyCapacity($lockedPrize, $game->campaign->timezone)) {
             return $this->finishAsLoss($game, $prize);
         }
 

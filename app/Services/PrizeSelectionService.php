@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Campaign;
-use App\Models\Game;
 use App\Models\Prize;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -45,14 +44,18 @@ class PrizeSelectionService
             ->where(function (Builder $query) use ($now) {
                 $query->whereNull('ends_at')
                     ->orWhere('ends_at', '>=', $now);
-            });
+            })->withCount(['games as wins_today' => function (Builder $query) use ($timezone) {
+                $today = now($timezone)->toDateString();
+
+                $query->whereDate('finished_at', $today);
+            }]);
     }
 
     public function chooseWinningPrize(Campaign $campaign, string $segment): ?Prize
     {
         $eligible = $this->eligiblePrizes($campaign, $segment)
             ->get()
-            ->filter(fn (Prize $prize) => $this->hasRemainingDailyCapacity($prize))
+            ->filter(fn (Prize $prize) => $this->hasRemainingDailyCapacity($prize, $campaign->timezone))
             ->pluck('id');
 
         if ($eligible->isEmpty()) {
@@ -65,21 +68,12 @@ class PrizeSelectionService
             ->first();
     }
 
-    public function hasRemainingDailyCapacity(Prize $prize, ?string $timezone = null): bool
+    public function hasRemainingDailyCapacity(Prize $prize, string $timezone): bool
     {
-        if (! isset($prize->daily_limit) || $prize->daily_limit === null) {
+        if ($prize->daily_limit === null) {
             return true;
         }
 
-        $timezone = $timezone ?? config('app.timezone');
-        $today = now($timezone)->toDateString();
-
-        $winsToday = Game::query()
-            ->where('prize_id', $prize->id)
-            ->whereDate('finished_at', $today)
-            ->where('result', 'won')
-            ->count();
-
-        return $winsToday < $prize->daily_limit;
+        return $prize->wins_today < $prize->daily_limit;
     }
 }

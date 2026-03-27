@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Campaign;
 use App\Models\Game;
 use App\Models\Prize;
 use Illuminate\Database\Seeder;
@@ -14,10 +15,9 @@ class GameSeeder extends Seeder
         Schema::disableForeignKeyConstraints();
         Game::truncate();
         Schema::enableForeignKeyConstraints();
-        Game::factory()->count(10000)->afterMaking(function (Game $game) {
-            $prize = Prize::where('segment', $game->segment)->inRandomOrder()->firstOrFail();
-            $game->prize_id = $prize->id;
-            $game->campaign_id = $prize->campaign_id;
+        // get all prize
+        Game::factory()->for(Campaign::factory())->count(10000)->afterMaking(function (Game $game) {
+            $game->prize_id = Prize::where('campaign_id', $game->campaign_id)->inRandomOrder()->first()->id;
         })->create();
     }
 }

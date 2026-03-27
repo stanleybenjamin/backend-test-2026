@@ -12,6 +12,11 @@ use RuntimeException;
 
 class GameplaySessionService
 {
+    protected $config = [
+        'winning_odds' => [3, 10], // 30% chance to win
+        'use_lottery' => false,
+    ];
+
     public function __construct(
         protected CampaignStateService $campaignStateService,
         protected PrizeSelectionService $prizeSelectionService,
@@ -39,7 +44,6 @@ class GameplaySessionService
 
         $activeGame = $campaign->games()
             ->where('player_token', $playerToken)
-            ->where('segment', $segment)
             ->whereNull('finished_at')
             ->first();
 
@@ -57,10 +61,16 @@ class GameplaySessionService
 
         $maxFlips = 5;
 
-        $winningPrize = Lottery::odds(3, 10)
-            ->winner(fn () => $this->prizeSelectionService->chooseWinningPrize($campaign, $segment))
-            ->loser(fn () => null)
-            ->choose();
+        $winningPrize = null;
+
+        if ($this->config['use_lottery']) {
+            $winningPrize = Lottery::odds(...$this->config['winning_odds'])
+                ->winner(fn () => $this->prizeSelectionService->chooseWinningPrize($campaign, $segment))
+                ->loser(fn () => null)
+                ->choose();
+        } else {
+            $winningPrize = $this->prizeSelectionService->chooseWinningPrize($campaign, $segment);
+        }
 
         $winningFlip = null;
         $revealPlan = [];
@@ -153,5 +163,10 @@ class GameplaySessionService
         }
 
         return $plan;
+    }
+
+    protected function setConfig(array $config): void
+    {
+        $this->config = array_merge($this->config, $config);
     }
 }

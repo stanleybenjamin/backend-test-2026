@@ -13,6 +13,7 @@ class Prize extends Model
     protected $fillable = [
         'campaign_id',
         'name',
+        'daily_limit',
         'description',
         'segment',
         'weight',
@@ -33,6 +34,11 @@ class Prize extends Model
     {
         return empty($query) ? static::query()
             : static::where('name', 'like', '%'.$query.'%');
+    }
+
+    public function games()
+    {
+        return $this->hasMany(Game::class);
     }
 
     public function campaign(): BelongsTo

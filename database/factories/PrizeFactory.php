@@ -23,8 +23,8 @@ class PrizeFactory extends Factory
             'segment' => $this->faker->randomElement(['low', 'med', 'high']),
             'weight' => $this->faker->numberBetween(1, 10),
             'daily_limit' => $this->faker->numberBetween(1, 100),
-            'starts_at' => $this->faker->dateTimeBetween('-1 week', 'now'),
-            'ends_at' => $this->faker->dateTimeBetween('now', '+1 week'),
+            'starts_at' => now(),
+            'ends_at' => now()->addWeek(),
         ];
     }
 }

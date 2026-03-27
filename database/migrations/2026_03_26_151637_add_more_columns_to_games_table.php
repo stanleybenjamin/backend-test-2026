@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('player_token')->nullable()->after('account');
             $table->unsignedTinyInteger('max_flips')->default(5)->after('segment');
             $table->unsignedTinyInteger('flips_count')->default(0)->after('max_flips');
-            $table->unsignedTinyInteger('winning_flip')->default(3)->after('flips_count');
+            $table->unsignedTinyInteger('winning_flip')->nullable()->after('flips_count');
             $table->json('reveal_plan')->nullable()->after('winning_flip');
             $table->foreignId('winning_prize_id')->nullable()->after('prize_id')->constrained('prizes');
             $table->timestamp('won_at')->nullable()->after('finished_at');

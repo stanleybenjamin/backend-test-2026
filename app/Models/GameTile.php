@@ -7,6 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class GameTile extends Model
 {
+    protected $fillable = [
+        'game_id',
+        'prize_id',
+        'tile_index',
+        'flip_number',
+        'is_revealed',
+    ];
+
     /** @use HasFactory<\Database\Factories\GameTileFactory> */
     use HasFactory;
 
