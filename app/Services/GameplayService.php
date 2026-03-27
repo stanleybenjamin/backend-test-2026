@@ -25,8 +25,16 @@ class GameplayService
 
             $this->ensureGameCanBePlayed($game);
             $this->ensureTileIndexIsValid($tileIndex);
-            $this->ensureTileNotAlreadyRevealed($game, $tileIndex);
             $this->ensureRevealPlanExists($game);
+
+            // Check if tile already revealed
+            $revealedTile = $game->tiles->first(fn (GameTile $tile) => $tile->tile_index === $tileIndex);
+            if ($revealedTile) {
+                // Return the image for the already revealed tile
+                return [
+                    'tileImage' => $revealedTile->prize->image,
+                ];
+            }
 
             $nextFlip = $game->flips_count + 1;
             $prize = $this->plannedPrizeForFlip($game, $nextFlip);
@@ -78,13 +86,7 @@ class GameplayService
 
     protected function ensureTileNotAlreadyRevealed(Game $game, int $tileIndex): void
     {
-        $alreadyRevealed = $game->tiles->contains(
-            fn (GameTile $tile) => $tile->tile_index === $tileIndex
-        );
-
-        if ($alreadyRevealed) {
-            throw new RuntimeException('This tile has already been revealed.');
-        }
+        // No-op: logic now handled in flip()
     }
 
     protected function ensureRevealPlanExists(Game $game): void

@@ -59,13 +59,15 @@ class GameplayServiceTest extends TestCase
         // generate a game with plan
         $game = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', 'player_token');
 
-        app(GameplayService::class)->flip($game, 1);
+        $result1 = app(GameplayService::class)->flip($game, 1);
+        $tilesCountBefore = $game->tiles()->count();
+        $result2 = app(GameplayService::class)->flip($game->fresh(), 1);
+        $tilesCountAfter = $game->tiles()->count();
 
-        $this->expectException(\RuntimeException::class);
-        // check the message contains "This tile has already been revealed."
-        $this->expectExceptionMessage('This tile has already been revealed.');
-        // attempt to flip the same tile again
-        app(GameplayService::class)->flip($game, 1);
+        // The number of tiles should not increase
+        $this->assertEquals($tilesCountBefore, $tilesCountAfter);
+        // The image should be the same
+        $this->assertEquals($result1['tileImage'], $result2['tileImage']);
     }
 
     #[Test]
