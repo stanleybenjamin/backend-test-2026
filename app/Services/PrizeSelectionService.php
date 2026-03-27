@@ -21,18 +21,15 @@ class PrizeSelectionService
      */
     public function getWinnablePrizes(Campaign $campaign, string $segment)
     {
-        $timezone = $campaign->timezone;
-
         return $this->eligiblePrizes($campaign, $segment)
             ->get()
-            ->filter(fn (Prize $prize) => $this->hasRemainingDailyCapacity($prize, $timezone))
+            ->filter(fn (Prize $prize) => $this->hasRemainingDailyCapacity($prize))
             ->values();
     }
 
     public function eligiblePrizes(Campaign $campaign, string $segment): Builder
     {
-        $timezone = $campaign->timezone;
-        $now = now($timezone);
+        $now = now();
 
         return Prize::query()
             ->where('campaign_id', $campaign->id)
@@ -44,18 +41,14 @@ class PrizeSelectionService
             ->where(function (Builder $query) use ($now) {
                 $query->whereNull('ends_at')
                     ->orWhere('ends_at', '>=', $now);
-            })->withCount(['games as wins_today' => function (Builder $query) use ($timezone) {
-                $today = now($timezone)->toDateString();
-
-                $query->whereDate('finished_at', $today);
-            }]);
+            })->addTodaysWins();
     }
 
     public function chooseWinningPrize(Campaign $campaign, string $segment): ?Prize
     {
         $eligible = $this->eligiblePrizes($campaign, $segment)
             ->get()
-            ->filter(fn (Prize $prize) => $this->hasRemainingDailyCapacity($prize, $campaign->timezone))
+            ->filter(fn (Prize $prize) => $this->hasRemainingDailyCapacity($prize))
             ->pluck('id');
 
         if ($eligible->isEmpty()) {
@@ -68,7 +61,7 @@ class PrizeSelectionService
             ->first();
     }
 
-    public function hasRemainingDailyCapacity(Prize $prize, string $timezone): bool
+    public function hasRemainingDailyCapacity(Prize $prize): bool
     {
         if ($prize->daily_limit === null) {
             return true;

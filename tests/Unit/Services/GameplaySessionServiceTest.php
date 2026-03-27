@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class GameplaySessionServiceTest extends TestCase
@@ -23,11 +24,15 @@ class GameplaySessionServiceTest extends TestCase
          * @var Campaign
          */
         $campaign = Campaign::factory()->create([
+            'timezone' => 'UTC',
             'starts_at' => now()->subDay(),
             'ends_at' => now()->addDay(),
         ]);
 
         Prize::factory()->count(5)->state($this->segmentSequence())->create([
+            'starts_at' => now(),
+            'segment' => 'low',
+            'ends_at' => now()->addDay(),
             'campaign_id' => $campaign->id,
         ]);
 
@@ -42,12 +47,16 @@ class GameplaySessionServiceTest extends TestCase
     {
         // create Campaign
         $campaign = Campaign::factory()->create([
+            'timezone' => 'UTC',
             'starts_at' => now()->subDay(),
             'ends_at' => now()->addDay(),
         ]);
 
         Prize::factory()->count(5)->state($this->segmentSequence())->create([
             'campaign_id' => $campaign->id,
+            'segment' => 'low',
+            'starts_at' => now(),
+            'ends_at' => now()->addDay(),
         ]);
 
         $playerToken = Str::uuid()->toString();
@@ -70,12 +79,16 @@ class GameplaySessionServiceTest extends TestCase
     {
         // create Campaign
         $campaign = Campaign::factory()->create([
+            'timezone' => 'UTC',
             'starts_at' => now()->subDay(),
             'ends_at' => now()->addDay(),
         ]);
 
         Prize::factory()->count(5)->state($this->segmentSequence())->create([
             'campaign_id' => $campaign->id,
+            'starts_at' => now(),
+            'segment' => 'low',
+            'ends_at' => now()->addDay(),
         ]);
 
         $playerToken = Str::uuid()->toString();
@@ -104,6 +117,7 @@ class GameplaySessionServiceTest extends TestCase
 
         Prize::factory()->count(5)->state($this->segmentSequence())->create([
             'campaign_id' => $campaign->id,
+            'segment' => 'low',
             'starts_at' => $campaign->starts_at,
             'ends_at' => $campaign->ends_at,
         ]);
@@ -136,11 +150,11 @@ class GameplaySessionServiceTest extends TestCase
         ]);
 
         // Don't create any prizes for the 'low' segment
-
         $playerToken = Str::uuid()->toString();
 
-        $result = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', $playerToken);
-        $this->assertNull($result);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Not enough playable prizes to build a game.');
+        app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', $playerToken);
     }
 
     protected function segmentSequence()

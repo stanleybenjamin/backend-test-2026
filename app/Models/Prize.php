@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -44,6 +45,14 @@ class Prize extends Model
     public function campaign(): BelongsTo
     {
         return $this->belongsTo(Campaign::class);
+    }
+
+    public function scopeAddTodaysWins(Builder $query)
+    {
+        return $query->withCount(['games as wins_today' => function ($q) {
+            $q->whereDate('created_at', today())
+                ->whereNotNull('prize_id');
+        }]);
     }
 
     public function scopeForSegment($query, string $segment)

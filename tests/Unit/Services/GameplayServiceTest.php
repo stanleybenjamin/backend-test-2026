@@ -187,30 +187,34 @@ class GameplayServiceTest extends TestCase
             'ends_at' => now()->addDay(),
         ]);
 
-        // Create a prize with daily_limit 1
-        $prize = Prize::factory()->create([
+        // Create three prizes, only the first has daily_limit 1
+        $prizes = Prize::factory()->count(3)->create([
             'campaign_id' => $campaign->id,
             'segment' => 'low',
             'starts_at' => $campaign->starts_at,
             'ends_at' => $campaign->ends_at,
-            'daily_limit' => 1,
+            'daily_limit' => 0,
         ]);
+        $exhaustiblePrize = $prizes[0];
+        $exhaustiblePrize->daily_limit = 1;
+        $exhaustiblePrize->save();
 
         // Exhaust the prize by marking a win
         $game1 = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', 'player_token1');
         $game1->winning_flip = 1;
-        $game1->winning_prize_id = $prize->id;
+        $game1->winning_prize_id = $exhaustiblePrize->id;
         $game1->max_flips = 1;
-        $game1->reveal_plan = [$prize->id];
+        $game1->reveal_plan = [$exhaustiblePrize->id];
         $game1->save();
+
         app(GameplayService::class)->flip($game1, 1);
 
         // Now create a new game and try to win the same prize
         $game2 = app(GameplaySessionService::class)->findOrCreateNewGame($campaign, 'low', 'player_token2');
         $game2->winning_flip = 1;
-        $game2->winning_prize_id = $prize->id;
+        $game2->winning_prize_id = $exhaustiblePrize->id;
         $game2->max_flips = 1;
-        $game2->reveal_plan = [$prize->id];
+        $game2->reveal_plan = [$exhaustiblePrize->id];
         $game2->save();
 
         $result = app(GameplayService::class)->flip($game2, 1);

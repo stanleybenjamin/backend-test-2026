@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Campaign;
-use Carbon\Carbon;
 
 class CampaignStateService
 {
@@ -30,7 +29,8 @@ class CampaignStateService
             return true; // If no start date is set, consider it as started
         }
 
-        return $this->nowForCampaign($campaign)->greaterThanOrEqualTo($campaign->starts_at);
+        // Compare UTC to UTC
+        return now()->greaterThanOrEqualTo($campaign->starts_at);
     }
 
     public function hasEnded(Campaign $campaign): bool
@@ -39,12 +39,8 @@ class CampaignStateService
             return false; // If no end date is set, consider it as not ended
         }
 
-        return $this->nowForCampaign($campaign)->greaterThanOrEqualTo($campaign->ends_at);
-    }
-
-    public function nowForCampaign(Campaign $campaign): Carbon
-    {
-        return now()->setTimezone($campaign->timezone);
+        // Compare UTC to UTC
+        return now()->greaterThanOrEqualTo($campaign->ends_at);
     }
 
     public function isPlayable(Campaign $campaign, ?string $segment = null): bool

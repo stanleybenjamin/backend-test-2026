@@ -122,10 +122,11 @@ class GameplayService
     {
         $lockedPrize = Prize::query()
             ->whereKey($prize->id)
+            ->addTodaysWins()
             ->lockForUpdate()
             ->first();
 
-        if (! $lockedPrize || ! $this->prizeSelectionService->hasRemainingDailyCapacity($lockedPrize, $game->campaign->timezone)) {
+        if (! $lockedPrize || ! $this->prizeSelectionService->hasRemainingDailyCapacity($lockedPrize)) {
             return $this->finishAsLoss($game, $prize);
         }
 

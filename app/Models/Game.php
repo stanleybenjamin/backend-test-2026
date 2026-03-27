@@ -20,6 +20,7 @@ class Game extends Model
         'max_flips',
         'winning_flip',
         'reveal_plan',
+        'result',
         'player_token',
         'winning_prize_id',
     ];
