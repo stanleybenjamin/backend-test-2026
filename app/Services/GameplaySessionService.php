@@ -34,6 +34,25 @@ class GameplaySessionService
         return $token;
     }
 
+    /**
+     * Finds the active game for the given player and campaign segment, or creates a new one if none exists.
+     *
+     * If the campaign is not playable or there are not enough prizes, throws an exception.
+     * If a game is already active for the player, returns it. Otherwise, creates a new game with a random win/loss plan.
+     *
+     * Techniques used:
+     * Here is where we determin if a user would win or loose and on which flip, then we build a reveal plan accordingly.
+     * The plan is an array of prize IDs for each flip, with the winning prize placed according to the determined winning flip,
+     * and decoys filling the other positions.
+     * We also ensure that no prize appears more than twice in the plan to maintain game balance.
+     *
+     * @param  Campaign  $campaign  The campaign to play in.
+     * @param  string  $segment  The segment (e.g. 'low', 'med', 'high').
+     * @param  string  $playerToken  The unique player token (from session).
+     * @return Game The active or newly created game instance.
+     *
+     * @throws RuntimeException If campaign is not playable or not enough prizes.
+     */
     public function findOrCreateNewGame(Campaign $campaign, string $segment, string $playerToken): Game
     {
         if (! $this->campaignStateService->isPlayable($campaign, $segment)) {
@@ -99,6 +118,16 @@ class GameplaySessionService
         ]);
     }
 
+    /**
+     * Summary of buildWinningPlan
+     * Generate a list of prize IDs for each flip, ensuring the winning prize appears at
+     * the predetermined winning flip and is not repeated more than twice,
+     * while filling other positions with decoy prizes.
+     *
+     * @param  mixed  $playablePrizes
+     *
+     * @throws RuntimeException
+     */
     protected function buildWinningPlan($playablePrizes, Prize $winningPrize, int $winningFlip, int $maxFlips): array
     {
         $decoys = $playablePrizes
@@ -144,6 +173,15 @@ class GameplaySessionService
         return $plan;
     }
 
+    /**
+     * Generate a list of prize IDs for each flip, ensuring no prize appears more than twice.
+     * Ultimately will lead to a loss since there is no winning prize in the plan,
+     * but maintains game balance by limiting prize repetition.
+     *
+     * @param  mixed  $playablePrizes
+     *
+     * @throws RuntimeException
+     */
     protected function buildLosingPlan($playablePrizes, int $maxFlips): array
     {
         $plan = [];

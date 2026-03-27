@@ -14,6 +14,10 @@ class GameplayService
         protected PrizeSelectionService $prizeSelectionService,
     ) {}
 
+    /**
+     * When a user flips we are simply just play the planned sequence of move but important caveat,
+     * If the price is exhausted we guide the user into a loosing position ultimately
+     */
     public function flip(Game $game, int $tileIndex): array
     {
         return DB::transaction(function () use ($game, $tileIndex) {
@@ -90,6 +94,11 @@ class GameplayService
         }
     }
 
+    /**
+     * Simply pick the sequence as preplanned, we only don't record it for a win when price is exhausted
+     *
+     * @return Prize|\Illuminate\Database\Eloquent\Collection<int, Prize>|\stdClass|null
+     */
     protected function plannedPrizeForFlip(Game $game, int $flipNumber): ?Prize
     {
         $prizeId = $game->reveal_plan[$flipNumber - 1] ?? null;
@@ -118,6 +127,15 @@ class GameplayService
         return true;
     }
 
+    /**
+     * Finish the game as a win, updating the game and prize state accordingly.
+     * If the prize is exhausted, the game is finished as a loss instead.
+     *
+     * This method assumes it's being called within a transaction and
+     * that the game and prize are properly locked for update to prevent race conditions.
+     *
+     * @return array|array{message: string, tileImage: mixed}
+     */
     protected function finishAsWin(Game $game, Prize $prize): array
     {
         $lockedPrize = Prize::query()
