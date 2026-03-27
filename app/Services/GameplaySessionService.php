@@ -13,7 +13,7 @@ use RuntimeException;
 class GameplaySessionService
 {
     protected $config = [
-        'winning_odds' => [3, 10], // 30% chance to win
+        'winning_odds' => [6, 10], // 60% chance to win
         'use_lottery' => true,
     ];
 

@@ -16,10 +16,10 @@ class ApiController extends Controller
 
             $gameId = $request->integer('gameId');
             $tileIndex = $request->integer('tileIndex');
-            //$playerToken = app(GameplaySessionService::class)->resolvePlayerToken($request);
+            // $playerToken = app(GameplaySessionService::class)->resolvePlayerToken($request);
 
             $game = Game::where('id', $gameId)
-                //->where('player_token', $playerToken)
+                // ->where('player_token', $playerToken)
                 ->whereNull('finished_at')
                 ->first();
 
