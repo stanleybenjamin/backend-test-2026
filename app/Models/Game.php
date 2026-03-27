@@ -24,6 +24,7 @@ class Game extends Model
     {
         return [
             'finished_at' => 'datetime',
+            'reveal_plan' => 'array',
         ];
     }
 

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedTinyInteger('max_flips')->default(5)->after('segment');
             $table->unsignedTinyInteger('flips_count')->default(0)->after('max_flips');
             $table->unsignedTinyInteger('winning_flip')->default(3)->after('flips_count');
-
+            $table->json('reveal_plan')->nullable()->after('winning_flip');
             $table->foreignId('winning_prize_id')->nullable()->after('prize_id')->constrained('prizes');
             $table->timestamp('won_at')->nullable()->after('finished_at');
             $table->string('result')->nullable()->after('won_at'); // won|lost|blocked
@@ -34,6 +34,7 @@ return new class extends Migration
         Schema::table('games', function (Blueprint $table) {
             $table->dropColumn(['player_token', 'max_flips', 'flips_count', 'winning_flip', 'winning_prize_id', 'won_at', 'result']);
             $table->dropIndex(['campaign_id', 'account', 'segment', 'finished_at']);
+            $table->dropColumn('reveal_plan');
             $table->dropIndex(['player_token']);
         });
     }

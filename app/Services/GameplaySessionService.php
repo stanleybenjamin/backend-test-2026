@@ -4,34 +4,42 @@ namespace App\Services;
 
 use App\Models\Campaign;
 use App\Models\Game;
+use App\Models\Prize;
 use Illuminate\Http\Request;
 use Illuminate\Support\Lottery;
 use Illuminate\Support\Str;
+use RuntimeException;
 
 class GameplaySessionService
 {
-    public function resolvePlayerToken(Request $request): ?string
+    public function __construct(
+        protected CampaignStateService $campaignStateService,
+        protected PrizeSelectionService $prizeSelectionService,
+    ) {}
+
+    public function resolvePlayerToken(Request $request): string
     {
-        // get token from session, if it exists else create a new one and store it in the session
         if ($request->session()->has('player_token')) {
             return $request->session()->get('player_token');
-        } else {
-            $token = Str::uuid()->toString(); // Generate a random token
-            $request->session()->put('player_token', $token);
-
-            return $token;
         }
+
+        $token = (string) Str::uuid();
+        $request->session()->put('player_token', $token);
+
+        return $token;
     }
 
     public function findOrCreateNewGame(Campaign $campaign, string $segment, string $playerToken): Game
     {
-        if (! app(CampaignStateService::class)->isPlayable($campaign)) {
-            throw new \Exception(app(CampaignStateService::class)->messageFor($campaign));
+        if (! $this->campaignStateService->isPlayable($campaign, $segment)) {
+            throw new RuntimeException(
+                $this->campaignStateService->messageFor($campaign, $segment) ?? 'Campaign is not playable.'
+            );
         }
 
-        // Check if there's an active game for this player in the campaign
         $activeGame = $campaign->games()
             ->where('player_token', $playerToken)
+            ->where('segment', $segment)
             ->whereNull('finished_at')
             ->first();
 
@@ -39,19 +47,111 @@ class GameplaySessionService
             return $activeGame;
         }
 
-        // user Lottery
-        $winningPrize = Lottery::odds(7, 10)
-            ->winner(fn () => app(PrizeSelectionService::class)->chooseWinningPrize($campaign, $segment)) // 70% chance to win
-            ->loser(fn () => null) // 30% chance to lose
+        $playablePrizes = $this->prizeSelectionService
+            ->getPlayablePrizes($campaign, $segment)
+            ->values();
+
+        if ($playablePrizes->count() < 3) {
+            throw new RuntimeException('Not enough playable prizes to build a game.');
+        }
+
+        $maxFlips = 5;
+
+        $winningPrize = Lottery::odds(3, 10)
+            ->winner(fn () => $this->prizeSelectionService->chooseWinningPrize($campaign, $segment))
+            ->loser(fn () => null)
             ->choose();
 
-        // If no active game, create a new one
+        $winningFlip = null;
+        $revealPlan = [];
+
+        if ($winningPrize) {
+            $winningFlip = random_int(3, $maxFlips);
+            $revealPlan = $this->buildWinningPlan(
+                $playablePrizes,
+                $winningPrize,
+                $winningFlip,
+                $maxFlips,
+            );
+        } else {
+            $revealPlan = $this->buildLosingPlan($playablePrizes, $maxFlips);
+        }
+
         return $campaign->games()->create([
-            'account' => Str::random(8),
+            'account' => 'account',
             'player_token' => $playerToken,
-            'winning_prize_id' => optional($winningPrize)->id, // choose
-            'winning_flip' => random_int(3, 5), // user can win on 3rd, 4th, or 5th flip
             'segment' => $segment,
+            'winning_prize_id' => $winningPrize?->id,
+            'winning_flip' => $winningFlip,
+            'max_flips' => $maxFlips,
+            'flips_count' => 0,
+            'reveal_plan' => $revealPlan,
         ]);
+    }
+
+    protected function buildWinningPlan($playablePrizes, Prize $winningPrize, int $winningFlip, int $maxFlips): array
+    {
+        $decoys = $playablePrizes
+            ->where('id', '!=', $winningPrize->id)
+            ->values();
+
+        if ($decoys->count() < 2) {
+            throw new RuntimeException('Not enough decoys to build a winning plan.');
+        }
+
+        $plan = array_fill(0, $maxFlips, null);
+
+        $availableBeforeWin = range(0, $winningFlip - 2);
+        shuffle($availableBeforeWin);
+
+        $winnerPositions = array_slice($availableBeforeWin, 0, 2);
+        $winnerPositions[] = $winningFlip - 1;
+
+        sort($winnerPositions);
+
+        foreach ($winnerPositions as $position) {
+            $plan[$position] = $winningPrize->id;
+        }
+
+        for ($i = 0; $i < $maxFlips; $i++) {
+            if ($plan[$i] !== null) {
+                continue;
+            }
+
+            $safeDecoys = $decoys->filter(function (Prize $prize) use ($plan) {
+                $count = count(array_filter($plan, fn ($id) => $id === $prize->id));
+
+                return $count < 2;
+            })->values();
+
+            if ($safeDecoys->isEmpty()) {
+                throw new RuntimeException('Unable to complete winning plan safely.');
+            }
+
+            $plan[$i] = $safeDecoys->random()->id;
+        }
+
+        return $plan;
+    }
+
+    protected function buildLosingPlan($playablePrizes, int $maxFlips): array
+    {
+        $plan = [];
+
+        for ($i = 0; $i < $maxFlips; $i++) {
+            $safePrizes = $playablePrizes->filter(function (Prize $prize) use ($plan) {
+                $count = count(array_filter($plan, fn ($id) => $id === $prize->id));
+
+                return $count < 2;
+            })->values();
+
+            if ($safePrizes->isEmpty()) {
+                throw new RuntimeException('Unable to build a losing plan safely.');
+            }
+
+            $plan[] = $safePrizes->random()->id;
+        }
+
+        return $plan;
     }
 }

@@ -5,11 +5,10 @@ namespace App\Services;
 use App\Models\Game;
 use App\Models\GameTile;
 use App\Models\Prize;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
-class GamePlayService
+class GameplayService
 {
     public function __construct(
         protected PrizeSelectionService $prizeSelectionService,
@@ -23,8 +22,14 @@ class GamePlayService
             $this->ensureGameCanBePlayed($game);
             $this->ensureTileIndexIsValid($tileIndex);
             $this->ensureTileNotAlreadyRevealed($game, $tileIndex);
+            $this->ensureRevealPlanExists($game);
 
-            $prize = $this->chooseRevealPrize($game);
+            $nextFlip = $game->flips_count + 1;
+            $prize = $this->plannedPrizeForFlip($game, $nextFlip);
+
+            if (! $prize) {
+                throw new RuntimeException("No planned prize found for flip {$nextFlip}.");
+            }
 
             GameTile::create([
                 'game_id' => $game->id,
@@ -33,11 +38,9 @@ class GamePlayService
             ]);
 
             $game->increment('flips_count');
-            $game->refresh()->load(['tiles.prize', 'winningPrize']);
+            $game->refresh();
 
-            $matchCount = $game->tiles->where('prize_id', $prize->id)->count();
-
-            if ($matchCount >= 3) {
+            if ($this->shouldWinNow($game, $prize)) {
                 return $this->finishAsWin($game, $prize);
             }
 
@@ -57,8 +60,8 @@ class GamePlayService
             throw new RuntimeException('This game is already finished.');
         }
 
-        if ($game->winning_prize_id === null) {
-            throw new RuntimeException('This game has no available winning prize.');
+        if ($game->flips_count >= $game->max_flips) {
+            throw new RuntimeException('This game has no flips remaining.');
         }
     }
 
@@ -80,80 +83,50 @@ class GamePlayService
         }
     }
 
-    protected function chooseRevealPrize(Game $game): Prize
+    protected function ensureRevealPlanExists(Game $game): void
     {
-        /** @var \Illuminate\Support\Collection<int,int> $counts */
-        $counts = $game->tiles
-            ->groupBy('prize_id')
-            ->map(fn (Collection $tiles) => $tiles->count());
+        if (! is_array($game->reveal_plan) || empty($game->reveal_plan)) {
+            throw new RuntimeException('This game has no reveal plan.');
+        }
+    }
 
-        // Lock the winner prize row for update to prevent overselling
-        $winner = Prize::where('id', $game->winning_prize_id)->lockForUpdate()->first();
+    protected function plannedPrizeForFlip(Game $game, int $flipNumber): ?Prize
+    {
+        $prizeId = $game->reveal_plan[$flipNumber - 1] ?? null;
 
-        if (! $winner) {
-            throw new RuntimeException('Winning prize is missing.');
+        if (! $prizeId) {
+            return null;
         }
 
-        $winnerCount = (int) ($counts[$winner->id] ?? 0);
-        $nextFlip = $game->flips_count + 1;
-        $winningFlip = $game->winning_flip; // can be null
+        return Prize::query()->find($prizeId);
+    }
 
-        // Winnable prizes (for winner logic)
-        $winnablePrizes = $this->prizeSelectionService->getWinnablePrizes($game->campaign, $game->segment);
-        // Playable prizes (for decoys)
-        $playablePrizes = $this->prizeSelectionService->getPlayablePrizes($game->campaign, $game->segment);
-
-        if ($playablePrizes->isEmpty()) {
-            throw new RuntimeException('No playable prizes available.');
+    protected function shouldWinNow(Game $game, Prize $prize): bool
+    {
+        if (is_null($game->winning_prize_id) || is_null($game->winning_flip)) {
+            return false;
         }
 
-        $winnerAvailable = $winnablePrizes->contains('id', $winner->id);
-
-        // Never allow non-winning prizes to become 3rd match.
-        $decoys = $playablePrizes->filter(function (Prize $prize) use ($counts, $winner) {
-            $count = (int) ($counts[$prize->id] ?? 0);
-
-            return $prize->id !== $winner->id && $count < 2;
-        })->values();
-
-        // If winning_flip is null, never allow 3rd match for winner (user will always lose)
-        if (is_null($winningFlip)) {
-            if ($winnerCount < 2 && $decoys->isNotEmpty()) {
-                return $decoys->random();
-            }
-            if ($decoys->isEmpty()) {
-                return $winner;
-            }
-
-            return $decoys->random();
+        if ((int) $game->winning_flip !== (int) $game->flips_count) {
+            return false;
         }
 
-        // Only allow 3rd match of winner on the randomly chosen winning flip
-        if ($winnerAvailable && $winnerCount >= 2 && $nextFlip == $winningFlip) {
-            return $winner;
+        if ((int) $game->winning_prize_id !== (int) $prize->id) {
+            return false;
         }
 
-        // Before 3rd match, prefer decoys over the winner to preserve suspense.
-        if ($winnerCount < 2 && $decoys->isNotEmpty()) {
-            return $decoys->random();
-        }
-
-        // If no decoys left, fallback to any playable prize (should not allow win if winner not available)
-        if ($decoys->isEmpty()) {
-            // If only winner left and can't match 3rd, just pick winner (won't allow win)
-            return $winner;
-        }
-
-        return $decoys->random();
+        return true;
     }
 
     protected function finishAsWin(Game $game, Prize $prize): array
     {
-        // Lock the prize row for update to prevent overselling
-        $lockedPrize = Prize::where('id', $prize->id)->lockForUpdate()->first();
+        $lockedPrize = Prize::query()
+            ->whereKey($prize->id)
+            ->lockForUpdate()
+            ->first();
 
-        if (! $this->prizeSelectionService->hasRemainingDailyCapacity($lockedPrize)) {
-            throw new RuntimeException('Prize daily limit has been reached.');
+        if (! $lockedPrize || ! $this->prizeSelectionService->hasRemainingDailyCapacity($lockedPrize)) {
+            return $this->finishAsLoss($game, $prize);
         }
 
         $game->update([
