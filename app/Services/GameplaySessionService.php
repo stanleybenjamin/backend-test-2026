@@ -14,7 +14,7 @@ class GameplaySessionService
 {
     protected $config = [
         'winning_odds' => [3, 10], // 30% chance to win
-        'use_lottery' => false,
+        'use_lottery' => true,
     ];
 
     public function __construct(

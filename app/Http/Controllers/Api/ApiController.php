@@ -4,42 +4,34 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Game;
-use App\Services\GamePlayService;
+use App\Services\GameplayService;
+use App\Services\GameplaySessionService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 
 class ApiController extends Controller
 {
-    public function flip()
+    public function flip(Request $request)
     {
-        /**
-         * This is a simplified example to demonstrate interaction with the provided frontend (FE).
-         * The game objective is to collect three matching tiles to win a prize. Once three matching tiles are collected:
-         *   - The game ends.
-         *   - The prize is awarded, and its daily volume limit (defined in the back office) must be updated.
-         *
-         * Requirements:
-         * - Use the database layer to store and manage all game-related data, including game state and prize counts.
-         * - Cache is used here only for demonstration purposes and should be replaced with proper database storage.
-         */
-        $currentMove = (Cache::get(request('gameId')) ?? 0) + 1;
-        Cache::put(request('gameId'), $currentMove);
+        try {
 
-        if ($currentMove >= 10) {
-            Cache::forget(request('gameId'));
+            $gameId = $request->integer('gameId');
+            $tileIndex = $request->integer('tileIndex');
+            //$playerToken = app(GameplaySessionService::class)->resolvePlayerToken($request);
+
+            $game = Game::where('id', $gameId)
+                //->where('player_token', $playerToken)
+                ->whereNull('finished_at')
+                ->first();
+
+            if (! $game) {
+                return response()->json(['message' => 'Game not found or not active for this user.'], 404);
+            }
+
+            $result = app(GameplayService::class)->flip($game, $tileIndex);
+
+            return response()->json($result);
+        } catch (\Throwable $th) {
+            return response()->json(['message' => $th->getMessage()], 422);
         }
-
-        return [
-            'tileImage' => asset('assets/'.random_int(1, 7).'.png'),
-        ] + ($currentMove >= 10 ? ['message' => 'You lost!'] : []);
-    }
-
-    public function v2(Request $request)
-    {
-        $game = Game::findOrFail($request->integer('gameId'));
-
-        return response()->json(
-            app(GamePlayService::class)->flip($game, $request->integer('tileIndex'))
-        );
     }
 }
